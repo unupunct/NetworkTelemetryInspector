@@ -1,0 +1,81 @@
+<UserControl x:Class="NetworkTelemetryInspector.Views.NetworkView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:c="clr-namespace:NetworkTelemetryInspector.Controls"
+             xmlns:vm="clr-namespace:NetworkTelemetryInspector.ViewModels">
+    <Grid Margin="24,20">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+        <DockPanel Margin="0,0,0,16">
+            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+                <CheckBox Style="{StaticResource Switch}" IsChecked="{Binding ShowInactive}" Content="Show disconnected adapters" Margin="0,0,16,0" />
+                <Button Content="Refresh" Command="{Binding RefreshCommand}" />
+            </StackPanel>
+            <StackPanel>
+                <TextBlock Text="Network" Style="{StaticResource TitleText}" />
+                <TextBlock Text="{Binding Summary}" Foreground="{DynamicResource Text2Brush}" Margin="0,4,0,0" />
+            </StackPanel>
+        </DockPanel>
+        <ProgressBar Grid.Row="1" Style="{StaticResource LoadingBar}" VerticalAlignment="Top" Visibility="{Binding IsBusy, Converter={StaticResource BoolToVis}}" />
+        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+            <ItemsControl ItemsSource="{Binding Adapters}">
+                <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <WrapPanel />
+                    </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate DataType="{x:Type vm:AdapterItem}">
+                        <Border Style="{StaticResource Card}" Width="420" Margin="0,0,14,14" Padding="18,16">
+                            <StackPanel>
+                                <DockPanel>
+                                    <Border DockPanel.Dock="Left" Width="38" Height="38" CornerRadius="8" Background="{DynamicResource AccentSoftBrush}" Margin="0,0,12,0">
+                                        <TextBlock Text="{Binding TypeGlyph}" Style="{StaticResource Icon}" FontSize="17" HorizontalAlignment="Center" Foreground="{DynamicResource AccentBrush}" />
+                                    </Border>
+                                    <StackPanel>
+                                        <TextBlock Text="{Binding Name}" FontSize="14.5" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
+                                        <TextBlock Text="{Binding Description}" FontSize="11.5" Foreground="{DynamicResource MutedBrush}" TextTrimming="CharacterEllipsis" ToolTip="{Binding Description}" />
+                                    </StackPanel>
+                                </DockPanel>
+                                <WrapPanel Margin="0,12,0,4">
+                                    <c:Pill Text="{Binding Type}" Tone="Accent" Margin="0,0,6,0" />
+                                    <c:Pill Text="{Binding Status}" Tone="{Binding StatusTone}" Margin="0,0,6,0" />
+                                    <c:Pill Text="Primary · Internet route" Tone="Cyan" Margin="0,0,6,0" Visibility="{Binding IsPrimary, Converter={StaticResource BoolToVis}}" />
+                                    <c:Pill Text="VPN" Tone="Warning" Visibility="{Binding IsVpn, Converter={StaticResource BoolToVis}}" />
+                                </WrapPanel>
+                                <Grid Margin="0,6,0,0">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="110" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="Auto" />
+                                    </Grid.RowDefinitions>
+                                    <TextBlock Text="IPv4" Style="{StaticResource LabelText}" Margin="0,6,0,0" />
+                                    <TextBlock Grid.Column="1" Text="{Binding IPv4}" Style="{StaticResource MonoText}" Margin="0,6,0,0" TextWrapping="Wrap" />
+                                    <TextBlock Grid.Row="1" Text="IPv6" Style="{StaticResource LabelText}" Margin="0,6,0,0" />
+                                    <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding IPv6}" Style="{StaticResource MonoText}" FontSize="11" Margin="0,6,0,0" TextWrapping="Wrap" />
+                                    <TextBlock Grid.Row="2" Text="Gateway" Style="{StaticResource LabelText}" Margin="0,6,0,0" />
+                                    <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding Gateway}" Style="{StaticResource MonoText}" Margin="0,6,0,0" TextWrapping="Wrap" />
+                                    <TextBlock Grid.Row="3" Text="DNS servers" Style="{StaticResource LabelText}" Margin="0,6,0,0" />
+                                    <TextBlock Grid.Row="3" Grid.Column="1" Text="{Binding Dns}" Style="{StaticResource MonoText}" Margin="0,6,0,0" TextWrapping="Wrap" />
+                                    <TextBlock Grid.Row="4" Text="Interface speed" Style="{StaticResource LabelText}" Margin="0,6,0,0" />
+                                    <TextBlock Grid.Row="4" Grid.Column="1" Text="{Binding Speed}" Style="{StaticResource MonoText}" Margin="0,6,0,0" />
+                                    <TextBlock Grid.Row="5" Text="MAC address" Style="{StaticResource LabelText}" Margin="0,6,0,0" />
+                                    <TextBlock Grid.Row="5" Grid.Column="1" Text="{Binding Mac}" Style="{StaticResource MonoText}" Margin="0,6,0,0" />
+                                </Grid>
+                            </StackPanel>
+                        </Border>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </ScrollViewer>
+    </Grid>
+</UserControl>

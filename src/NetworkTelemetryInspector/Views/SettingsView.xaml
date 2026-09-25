@@ -1,0 +1,140 @@
+<UserControl x:Class="NetworkTelemetryInspector.Views.SettingsView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <UserControl.Resources>
+        <Style x:Key="Row" TargetType="CheckBox" BasedOn="{StaticResource Switch}">
+            <Setter Property="Margin" Value="0,0,0,14" />
+        </Style>
+        <Style x:Key="Hint" TargetType="TextBlock" BasedOn="{StaticResource LabelText}">
+            <Setter Property="TextWrapping" Value="Wrap" />
+            <Setter Property="Margin" Value="0,-10,60,14" />
+        </Style>
+        <Style x:Key="Section" TargetType="Border" BasedOn="{StaticResource Card}">
+            <Setter Property="Margin" Value="0,0,0,14" />
+            <Setter Property="Padding" Value="20,16" />
+        </Style>
+    </UserControl.Resources>
+    <ScrollViewer VerticalScrollBarVisibility="Auto">
+        <StackPanel Margin="24,20" MaxWidth="820" HorizontalAlignment="Left">
+            <TextBlock Text="Settings" Style="{StaticResource TitleText}" />
+            <TextBlock Text="Changes are applied and saved immediately." Foreground="{DynamicResource Text2Brush}" Margin="0,4,0,18" />
+
+            <!-- Monitoring -->
+            <Border Style="{StaticResource Section}">
+                <StackPanel>
+                    <TextBlock Text="Monitoring" Style="{StaticResource SectionTitle}" />
+                    <DockPanel Margin="0,0,0,14">
+                        <ComboBox DockPanel.Dock="Right" Width="130" ItemsSource="{Binding IntervalOptions}" SelectedItem="{Binding RefreshIntervalMs}">
+                            <ComboBox.ItemTemplate>
+                                <DataTemplate>
+                                    <TextBlock><Run Text="{Binding Mode=OneWay}" /><Run Text=" ms" /></TextBlock>
+                                </DataTemplate>
+                            </ComboBox.ItemTemplate>
+                        </ComboBox>
+                        <TextBlock Text="Refresh interval" VerticalAlignment="Center" />
+                    </DockPanel>
+                    <CheckBox Style="{StaticResource Row}" IsChecked="{Binding StartWithWindows}" Content="Start with Windows" />
+                    <TextBlock Style="{StaticResource Hint}" Text="Adds a per-user entry (HKCU\...\Run) that starts the app minimized to the tray. No administrator rights needed." />
+                    <CheckBox Style="{StaticResource Row}" IsChecked="{Binding MinimizeToTray}" Content="Minimize to tray" />
+                    <TextBlock Style="{StaticResource Hint}" Text="Minimizing or closing the window keeps monitoring in the system tray. Use Exit in the tray menu to quit." />
+                    <CheckBox Style="{StaticResource Row}" IsChecked="{Binding MonitorBackgroundActivity}" Content="Monitor background activity" />
+                    <TextBlock Style="{StaticResource Hint}" Text="Labels applications that communicate while you are not using them (heuristic, based on window focus)." />
+                    <CheckBox Style="{StaticResource Row}" IsChecked="{Binding ResolveHostnames}" Content="Resolve hostnames" />
+                    <CheckBox Style="{StaticResource Row}" IsChecked="{Binding RecordHistory}" Content="Record history" />
+                    <CheckBox Style="{StaticResource Row}" IsChecked="{Binding ShowLocalTraffic}" Content="Show local (loopback) connections" />
+                    <CheckBox Style="{StaticResource Row}" IsChecked="{Binding ShowListeningAndUdp}" Content="Show listening ports and UDP endpoints" />
+                    <TextBlock Style="{StaticResource Hint}" Text="Off by default: listening sockets and UDP endpoints have no remote address, so they are not 'talking to' anything yet." />
+                </StackPanel>
+            </Border>
+
+            <!-- Privacy -->
+            <Border Style="{StaticResource Section}">
+                <StackPanel>
+                    <TextBlock Text="Privacy" Style="{StaticResource SectionTitle}" />
+                    <CheckBox Style="{StaticResource Row}" IsChecked="{Binding PublicIpLookup}" Content="Allow external public IP lookup" />
+                    <TextBlock Style="{StaticResource Hint}" Text="Public IP lookup uses an external service (api.ipify.org). When off, the request is never made." />
+                    <CheckBox Style="{StaticResource Row}" IsChecked="{Binding ReverseDnsLookup}" Content="Reverse DNS lookups (DNS hostname resolution)" />
+                    <TextBlock Style="{StaticResource Hint}" Text="Sends PTR queries to your configured DNS server for addresses not found in the local DNS cache. The local cache is always used and generates no traffic." />
+                    <DockPanel>
+                        <ComboBox DockPanel.Dock="Right" Width="130" ItemsSource="{Binding RetentionOptions}" SelectedItem="{Binding HistoryRetentionDays}">
+                            <ComboBox.ItemTemplate>
+                                <DataTemplate>
+                                    <TextBlock><Run Text="{Binding Mode=OneWay}" /><Run Text=" days" /></TextBlock>
+                                </DataTemplate>
+                            </ComboBox.ItemTemplate>
+                        </ComboBox>
+                        <TextBlock Text="History retention" VerticalAlignment="Center" />
+                    </DockPanel>
+                </StackPanel>
+            </Border>
+
+            <!-- Firewall -->
+            <Border Style="{StaticResource Section}">
+                <StackPanel>
+                    <TextBlock Text="Firewall" Style="{StaticResource SectionTitle}" />
+                    <CheckBox Style="{StaticResource Row}" IsChecked="{Binding ReadOnlyMode}" Content="Read-only mode" />
+                    <TextBlock Style="{StaticResource Hint}" Text="Monitoring only: no firewall rules are created, changed or removed and no system configuration is modified." />
+                    <CheckBox Style="{StaticResource Row}" IsChecked="{Binding RequireBlockConfirmation}" Content="Require confirmation before blocking" />
+                    <CheckBox Style="{StaticResource Row}" IsChecked="{Binding RemoveRulesOnUninstall}" Content="Remove rules on uninstall" />
+                    <TextBlock Text="Rule name prefix" Margin="0,4,0,6" />
+                    <StackPanel Orientation="Horizontal">
+                        <TextBox Text="{Binding PrefixDraft, UpdateSourceTrigger=PropertyChanged}" Width="200" FontFamily="{StaticResource MonoFont}" />
+                        <Button Content="Apply" Command="{Binding ApplyPrefixCommand}" Margin="8,0,0,0" />
+                    </StackPanel>
+                    <TextBlock Text="{Binding PrefixError}" Foreground="{DynamicResource DangerBrush}" FontSize="12" Margin="0,4,0,0" Visibility="{Binding PrefixError, Converter={StaticResource NullToVis}}" />
+                    <TextBlock Style="{StaticResource LabelText}" Margin="0,6,0,0" TextWrapping="Wrap">
+                        <Run Text="Example:" /> <Run Text="{Binding RuleExample, Mode=OneWay}" FontFamily="{StaticResource MonoFont}" />
+                        <LineBreak /><Run Text="Rules are identified as ours by their firewall group and description marker, so changing the prefix never orphans existing rules." />
+                    </TextBlock>
+                </StackPanel>
+            </Border>
+
+            <!-- Notifications -->
+            <Border Style="{StaticResource Section}">
+                <StackPanel>
+                    <TextBlock Text="Notifications" Style="{StaticResource SectionTitle}" />
+                    <CheckBox Style="{StaticResource Row}" IsChecked="{Binding NotifyNewApplication}" Content="New application connected to the Internet" />
+                    <CheckBox Style="{StaticResource Row}" IsChecked="{Binding NotifyBlocked}" Content="Application blocked" />
+                    <CheckBox Style="{StaticResource Row}" IsChecked="{Binding NotifyUnusualBackground}" Content="Unusual background activity detected" />
+                    <TextBlock Style="{StaticResource Hint}" Text="Unusual = an application labelled Background opens 40 or more connections within one minute. At most one notification per application every 15 minutes." Margin="0,-10,60,0" />
+                </StackPanel>
+            </Border>
+
+            <!-- Appearance -->
+            <Border Style="{StaticResource Section}">
+                <StackPanel>
+                    <TextBlock Text="Appearance" Style="{StaticResource SectionTitle}" />
+                    <StackPanel Orientation="Horizontal">
+                        <RadioButton Style="{StaticResource OptionRadio}" GroupName="Theme" Content="Dark" IsChecked="{Binding Theme, Converter={StaticResource EnumEquals}, ConverterParameter=Dark}" />
+                        <RadioButton Style="{StaticResource OptionRadio}" GroupName="Theme" Content="Light" IsChecked="{Binding Theme, Converter={StaticResource EnumEquals}, ConverterParameter=Light}" />
+                        <RadioButton Style="{StaticResource OptionRadio}" GroupName="Theme" Content="Follow Windows" IsChecked="{Binding Theme, Converter={StaticResource EnumEquals}, ConverterParameter=System}" />
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+
+            <!-- Classification rules & data -->
+            <Border Style="{StaticResource Section}">
+                <StackPanel>
+                    <TextBlock Text="Classification rules, logs and data" Style="{StaticResource SectionTitle}" />
+                    <TextBlock Style="{StaticResource BodyText}" Text="Telemetry and updater patterns (hostnames, process names, services) are stored in an editable JSON file. Use * as a wildcard. Reload after editing." />
+                    <WrapPanel Margin="0,10,0,0">
+                        <Button Content="Open rules file" Command="{Binding OpenRulesFileCommand}" Margin="0,0,8,8" />
+                        <Button Content="Reload rules" Command="{Binding ReloadRulesCommand}" Margin="0,0,8,8" />
+                        <Button Content="Open log folder" Command="{Binding OpenLogFolderCommand}" Margin="0,0,8,8" />
+                        <Button Content="Open data folder" Command="{Binding OpenDataFolderCommand}" Margin="0,0,8,8" />
+                    </WrapPanel>
+                    <TextBlock Style="{StaticResource LabelText}" Text="{Binding DataFolder}" FontFamily="{StaticResource MonoFont}" />
+                </StackPanel>
+            </Border>
+
+            <!-- Uninstall -->
+            <Border Style="{StaticResource Section}">
+                <StackPanel>
+                    <TextBlock Text="Uninstall" Style="{StaticResource SectionTitle}" />
+                    <TextBlock Style="{StaticResource BodyText}" Text="This is a portable application. Uninstall removes its firewall rules (if 'Remove rules on uninstall' is on), the Start with Windows entry and all local data, then exits. You can then delete the .exe." />
+                    <Button Style="{StaticResource DangerButton}" Content="Uninstall and exit" Command="{Binding UninstallCommand}" HorizontalAlignment="Left" Margin="0,12,0,0" />
+                </StackPanel>
+            </Border>
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

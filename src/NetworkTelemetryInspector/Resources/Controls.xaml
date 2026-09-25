@@ -1,0 +1,87 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:c="clr-namespace:NetworkTelemetryInspector.Controls">
+
+    <Style TargetType="c:ClassBadge">
+        <Setter Property="Background" Value="{DynamicResource UnknownSoftBrush}" />
+        <Setter Property="Foreground" Value="{DynamicResource UnknownBrush}" />
+        <Setter Property="IsTabStop" Value="False" />
+        <Setter Property="HorizontalAlignment" Value="Left" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+        <Setter Property="ToolTip" Value="Classification is heuristic and does not prove that traffic is telemetry." />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="c:ClassBadge">
+                    <Border Background="{TemplateBinding Background}" CornerRadius="5" Padding="7,2">
+                        <TextBlock Text="{TemplateBinding Text}" Foreground="{TemplateBinding Foreground}" FontSize="10.5" FontWeight="SemiBold" />
+                    </Border>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+        <Style.Triggers>
+            <Trigger Property="Kind" Value="Normal">
+                <Setter Property="Background" Value="{DynamicResource SuccessSoftBrush}" />
+                <Setter Property="Foreground" Value="{DynamicResource SuccessBrush}" />
+            </Trigger>
+            <Trigger Property="Kind" Value="Background">
+                <Setter Property="Background" Value="{DynamicResource BackgroundClassSoftBrush}" />
+                <Setter Property="Foreground" Value="{DynamicResource BackgroundClassBrush}" />
+            </Trigger>
+            <Trigger Property="Kind" Value="PossibleTelemetry">
+                <Setter Property="Background" Value="{DynamicResource WarningSoftBrush}" />
+                <Setter Property="Foreground" Value="{DynamicResource WarningBrush}" />
+            </Trigger>
+            <Trigger Property="Kind" Value="UpdateService">
+                <Setter Property="Background" Value="{DynamicResource CyanSoftBrush}" />
+                <Setter Property="Foreground" Value="{DynamicResource CyanBrush}" />
+            </Trigger>
+        </Style.Triggers>
+    </Style>
+
+    <Style TargetType="c:Pill">
+        <Setter Property="Background" Value="{DynamicResource UnknownSoftBrush}" />
+        <Setter Property="Foreground" Value="{DynamicResource Text2Brush}" />
+        <Setter Property="IsTabStop" Value="False" />
+        <Setter Property="HorizontalAlignment" Value="Left" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="c:Pill">
+                    <Border Background="{TemplateBinding Background}" CornerRadius="5" Padding="7,2">
+                        <TextBlock Text="{TemplateBinding Text}" Foreground="{TemplateBinding Foreground}" FontSize="10.5" FontWeight="SemiBold" />
+                    </Border>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+        <Style.Triggers>
+            <Trigger Property="Tone" Value="Accent">
+                <Setter Property="Background" Value="{DynamicResource AccentSoftBrush}" />
+                <Setter Property="Foreground" Value="{DynamicResource AccentBrush}" />
+            </Trigger>
+            <Trigger Property="Tone" Value="Success">
+                <Setter Property="Background" Value="{DynamicResource SuccessSoftBrush}" />
+                <Setter Property="Foreground" Value="{DynamicResource SuccessBrush}" />
+            </Trigger>
+            <Trigger Property="Tone" Value="Warning">
+                <Setter Property="Background" Value="{DynamicResource WarningSoftBrush}" />
+                <Setter Property="Foreground" Value="{DynamicResource WarningBrush}" />
+            </Trigger>
+            <Trigger Property="Tone" Value="Danger">
+                <Setter Property="Background" Value="{DynamicResource DangerSoftBrush}" />
+                <Setter Property="Foreground" Value="{DynamicResource DangerBrush}" />
+            </Trigger>
+            <Trigger Property="Tone" Value="Cyan">
+                <Setter Property="Background" Value="{DynamicResource CyanSoftBrush}" />
+                <Setter Property="Foreground" Value="{DynamicResource CyanBrush}" />
+            </Trigger>
+        </Style.Triggers>
+    </Style>
+
+    <c:BoolToVisibilityConverter x:Key="BoolToVis" />
+    <c:BoolToVisibilityConverter x:Key="InvBoolToVis" Invert="True" />
+    <c:NullToVisibilityConverter x:Key="NullToVis" />
+    <c:NullToVisibilityConverter x:Key="InvNullToVis" Invert="True" />
+    <c:ZeroToVisibilityConverter x:Key="ZeroToVis" />
+    <c:EnumEqualsConverter x:Key="EnumEquals" />
+    <c:EnumToVisibilityConverter x:Key="EnumToVis" />
+</ResourceDictionary>

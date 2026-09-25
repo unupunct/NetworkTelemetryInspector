@@ -1,0 +1,88 @@
+<UserControl x:Class="NetworkTelemetryInspector.Views.HistoryView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:c="clr-namespace:NetworkTelemetryInspector.Controls">
+    <Grid Margin="24,20">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <DockPanel Margin="0,0,0,16">
+            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+                <CheckBox Style="{StaticResource Switch}" IsChecked="{Binding AutoRefresh}" Margin="0,0,16,0" Content="Live" ToolTip="Refresh the list every few seconds" />
+                <Button Content="Export CSV" Command="{Binding ExportCommand}" Margin="0,0,8,0" />
+                <Button Style="{StaticResource DangerButton}" Content="Clear History" Command="{Binding ClearCommand}" />
+            </StackPanel>
+            <StackPanel>
+                <TextBlock Text="History" Style="{StaticResource TitleText}" />
+                <TextBlock Text="{Binding StorageNote}" Foreground="{DynamicResource Text2Brush}" Margin="0,4,0,0" />
+            </StackPanel>
+        </DockPanel>
+
+        <Border Grid.Row="1" Background="{DynamicResource WarningSoftBrush}" CornerRadius="8" Padding="12,8" Margin="0,0,0,12"
+                Visibility="{Binding RecordingEnabled, Converter={StaticResource InvBoolToVis}}">
+            <TextBlock Text="History recording is turned off in Settings. Existing entries are shown; no new events are recorded." Foreground="{DynamicResource WarningBrush}" />
+        </Border>
+
+        <Border Grid.Row="2" Style="{StaticResource Card}" Padding="12" Margin="0,0,0,12">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="150" />
+                    <ColumnDefinition Width="170" />
+                    <ColumnDefinition Width="130" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <TextBox Text="{Binding ApplicationFilter, UpdateSourceTrigger=PropertyChanged}" Tag="Application" Margin="0,0,8,0" />
+                <TextBox Grid.Column="1" Text="{Binding IpFilter, UpdateSourceTrigger=PropertyChanged}" Tag="IP address" Margin="0,0,8,0" />
+                <TextBox Grid.Column="2" Text="{Binding HostnameFilter, UpdateSourceTrigger=PropertyChanged}" Tag="Hostname" Margin="0,0,8,0" />
+                <ComboBox Grid.Column="3" ItemsSource="{Binding DateOptions}" SelectedItem="{Binding DateFilter}" Margin="0,0,8,0" ToolTip="Date" />
+                <ComboBox Grid.Column="4" ItemsSource="{Binding StatusOptions}" SelectedItem="{Binding StatusFilter}" Margin="0,0,8,0" ToolTip="Blocked / allowed" />
+                <ComboBox Grid.Column="5" ItemsSource="{Binding ProtocolOptions}" SelectedItem="{Binding ProtocolFilter}" Margin="0,0,8,0" ToolTip="Protocol" />
+                <Button Grid.Column="6" Content="Reset" Command="{Binding ResetFiltersCommand}" />
+            </Grid>
+        </Border>
+
+        <Border Grid.Row="3" Style="{StaticResource Card}" Padding="6">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="*" />
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
+                <DataGrid ItemsSource="{Binding Rows}" AutomationProperties.Name="Connection history">
+                    <DataGrid.Columns>
+                        <DataGridTextColumn Header="TIMESTAMP" Binding="{Binding Time}" Width="150" />
+                        <DataGridTextColumn Header="APPLICATION" Binding="{Binding Application}" Width="170" />
+                        <DataGridTextColumn Header="PID" Binding="{Binding Pid}" Width="64" />
+                        <DataGridTextColumn Header="REMOTE IP" Binding="{Binding RemoteAddress}" Width="150" />
+                        <DataGridTextColumn Header="HOSTNAME" Binding="{Binding Hostname}" Width="*" />
+                        <DataGridTextColumn Header="PORT" Binding="{Binding Port}" Width="64" />
+                        <DataGridTextColumn Header="PROTOCOL" Binding="{Binding Protocol}" Width="80" />
+                        <DataGridTextColumn Header="ACTION" Binding="{Binding Action}" Width="150" />
+                        <DataGridTemplateColumn Header="STATUS" Width="90" SortMemberPath="Status">
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate>
+                                    <Grid>
+                                        <c:Pill Text="Blocked" Tone="Danger" Visibility="{Binding IsBlocked, Converter={StaticResource BoolToVis}}" />
+                                        <c:Pill Text="Allowed" Tone="Neutral" Visibility="{Binding IsBlocked, Converter={StaticResource InvBoolToVis}}" />
+                                    </Grid>
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
+                    </DataGrid.Columns>
+                </DataGrid>
+                <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Visibility="{Binding Rows.Count, Converter={StaticResource ZeroToVis}}">
+                    <TextBlock Text="&#xE81C;" Style="{StaticResource Icon}" FontSize="34" HorizontalAlignment="Center" Foreground="{DynamicResource MutedBrush}" />
+                    <TextBlock Text="No history yet" FontSize="15" FontWeight="SemiBold" HorizontalAlignment="Center" Margin="0,12,0,4" />
+                    <TextBlock Text="Connections are recorded as they open and close. Try widening the filters." Foreground="{DynamicResource MutedBrush}" HorizontalAlignment="Center" />
+                </StackPanel>
+                <TextBlock Grid.Row="1" Text="{Binding Summary}" Style="{StaticResource LabelText}" Margin="8,8,0,4" />
+            </Grid>
+        </Border>
+    </Grid>
+</UserControl>

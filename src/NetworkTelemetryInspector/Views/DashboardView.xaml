@@ -1,0 +1,584 @@
+<UserControl x:Class="NetworkTelemetryInspector.Views.DashboardView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:c="clr-namespace:NetworkTelemetryInspector.Controls"
+             xmlns:v="clr-namespace:NetworkTelemetryInspector.Views"
+             xmlns:vm="clr-namespace:NetworkTelemetryInspector.ViewModels">
+    <UserControl.Resources>
+        <!-- Column widths shared by the list header and every application row. -->
+        <GridLength x:Key="ColConn">90</GridLength>
+        <GridLength x:Key="ColRate">88</GridLength>
+        <GridLength x:Key="ColClass">122</GridLength>
+        <GridLength x:Key="ColStatus">78</GridLength>
+        <GridLength x:Key="ColAction">92</GridLength>
+
+        <!-- Secondary columns collapse when the list is narrow (details panel open / small window);
+             their values stay available in the details panel. -->
+        <Style x:Key="Secondary" TargetType="FrameworkElement">
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding DataContext.IsCompact, RelativeSource={RelativeSource AncestorType=UserControl}}" Value="True">
+                    <Setter Property="Visibility" Value="Collapsed" />
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+
+        <Style x:Key="SummaryCard" TargetType="Border" BasedOn="{StaticResource Card}">
+            <Setter Property="Padding" Value="14,11" />
+            <Setter Property="Margin" Value="0,0,10,10" />
+        </Style>
+        <Style x:Key="CardValue" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="22" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Margin" Value="0,4,0,0" />
+            <Setter Property="Foreground" Value="{DynamicResource TextBrush}" />
+        </Style>
+        <Style x:Key="HeaderCell" TargetType="TextBlock" BasedOn="{StaticResource LabelText}">
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+        </Style>
+        <Style x:Key="CellText" TargetType="TextBlock">
+            <Setter Property="VerticalAlignment" Value="Center" />
+            <Setter Property="FontSize" Value="12.5" />
+            <Setter Property="TextTrimming" Value="CharacterEllipsis" />
+            <Setter Property="Foreground" Value="{DynamicResource TextBrush}" />
+        </Style>
+        <Style x:Key="CellMono" TargetType="TextBlock" BasedOn="{StaticResource CellText}">
+            <Setter Property="FontFamily" Value="{StaticResource MonoFont}" />
+            <Setter Property="FontSize" Value="12" />
+        </Style>
+        <Style x:Key="DetailLabel" TargetType="TextBlock" BasedOn="{StaticResource LabelText}">
+            <Setter Property="Margin" Value="0,10,0,2" />
+        </Style>
+
+        <!-- Block / Unblock toggle used in rows and the details panel. -->
+        <DataTemplate x:Key="BlockButtons">
+            <Grid>
+                <Button Style="{StaticResource RowDangerButton}" Content="Block" ToolTip="Block Internet access for this application"
+                        Command="{Binding DataContext.BlockCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}"
+                        Visibility="{Binding IsBlocked, Converter={StaticResource InvBoolToVis}}" IsEnabled="{Binding CanBlock}" />
+                <Button Style="{StaticResource RowSuccessButton}" Content="Unblock" ToolTip="Remove this application's block rule"
+                        Command="{Binding DataContext.UnblockCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}"
+                        Visibility="{Binding IsBlocked, Converter={StaticResource BoolToVis}}" />
+                <ProgressBar Style="{StaticResource LoadingBar}" VerticalAlignment="Bottom" Margin="4,0" Visibility="{Binding IsBusy, Converter={StaticResource BoolToVis}}" />
+            </Grid>
+        </DataTemplate>
+
+        <DataTemplate x:Key="StatusBadge">
+            <Grid>
+                <c:Pill Text="BLOCKED" Tone="Danger" Visibility="{Binding IsBlocked, Converter={StaticResource BoolToVis}}" />
+                <c:Pill Text="{Binding StatusText}" Tone="Neutral" Visibility="{Binding IsBlocked, Converter={StaticResource InvBoolToVis}}" />
+            </Grid>
+        </DataTemplate>
+
+        <!-- One connection inside an expanded application. -->
+        <DataTemplate x:Key="ConnectionRow" DataType="{x:Type vm:ConnectionItemViewModel}">
+            <Grid Height="28" Margin="44,0,12,0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="56" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="210" />
+                    <ColumnDefinition Width="*" MinWidth="100" />
+                    <ColumnDefinition Width="108" />
+                    <ColumnDefinition Width="80" />
+                    <ColumnDefinition Width="80" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <TextBlock Text="{Binding Protocol}" Style="{StaticResource CellText}" Foreground="{DynamicResource Text2Brush}" />
+                <Border Grid.Column="1" Width="190" Style="{StaticResource Secondary}">
+                    <TextBlock Text="{Binding LocalEndpoint}" Style="{StaticResource CellMono}" Foreground="{DynamicResource Text2Brush}" ToolTip="Local address" />
+                </Border>
+                <TextBlock Grid.Column="2" Text="{Binding RemoteEndpoint}" Style="{StaticResource CellMono}" ToolTip="Remote address and port" Margin="0,0,8,0" />
+                <TextBlock Grid.Column="3" Text="{Binding Hostname}" Style="{StaticResource CellText}" ToolTip="{Binding HostnameSource}" Margin="0,0,8,0" />
+                <StackPanel Grid.Column="4" Orientation="Horizontal" VerticalAlignment="Center">
+                    <Ellipse Width="6" Height="6" Margin="0,0,6,0">
+                        <Ellipse.Style>
+                            <Style TargetType="Ellipse">
+                                <Setter Property="Fill" Value="{DynamicResource MutedBrush}" />
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsEstablished}" Value="True">
+                                        <Setter Property="Fill" Value="{DynamicResource SuccessBrush}" />
+                                    </DataTrigger>
+                                    <DataTrigger Binding="{Binding IsBlockedAttempt}" Value="True">
+                                        <Setter Property="Fill" Value="{DynamicResource DangerBrush}" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Ellipse.Style>
+                    </Ellipse>
+                    <TextBlock Text="{Binding State}" Style="{StaticResource CellText}" FontSize="11.5" Foreground="{DynamicResource Text2Brush}" />
+                </StackPanel>
+                <TextBlock Grid.Column="5" Text="{Binding Download}" Style="{StaticResource CellText}" TextAlignment="Right" Margin="0,0,10,0" ToolTip="Download" />
+                <TextBlock Grid.Column="6" Text="{Binding Upload}" Style="{StaticResource CellText}" TextAlignment="Right" Margin="0,0,10,0" ToolTip="Upload" />
+                <Border Grid.Column="7" Width="64" Style="{StaticResource Secondary}">
+                    <TextBlock Text="{Binding FirstSeen}" Style="{StaticResource CellText}" Foreground="{DynamicResource MutedBrush}" ToolTip="First seen" />
+                </Border>
+            </Grid>
+        </DataTemplate>
+
+        <!-- One application row (grouped view). -->
+        <DataTemplate x:Key="AppRow" DataType="{x:Type vm:AppItemViewModel}">
+            <!-- Pinned to the viewport: rows must re-flow immediately when the details panel narrows the list. -->
+            <StackPanel MaxWidth="{Binding ViewportWidth, RelativeSource={RelativeSource AncestorType=ScrollViewer}}">
+                <Grid Height="50" Margin="6,0,8,0" Background="Transparent">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="28" />
+                        <ColumnDefinition Width="36" />
+                        <ColumnDefinition Width="*" MinWidth="130" />
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="{StaticResource ColConn}" />
+                        <ColumnDefinition Width="{StaticResource ColRate}" />
+                        <ColumnDefinition Width="{StaticResource ColRate}" />
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="{StaticResource ColClass}" />
+                        <ColumnDefinition Width="{StaticResource ColStatus}" />
+                        <ColumnDefinition Width="{StaticResource ColAction}" />
+                    </Grid.ColumnDefinitions>
+                    <ToggleButton Style="{StaticResource ChevronToggle}" IsChecked="{Binding IsExpanded}" VerticalAlignment="Center"
+                                  ToolTip="Show individual connections" AutomationProperties.Name="Expand connections" />
+                    <Grid Grid.Column="1" Width="24" Height="24" HorizontalAlignment="Left">
+                        <Border CornerRadius="5" Background="{DynamicResource Surface2Brush}" Visibility="{Binding Icon, Converter={StaticResource InvNullToVis}}">
+                            <TextBlock Text="&#xE7B8;" Style="{StaticResource Icon}" FontSize="13" HorizontalAlignment="Center" Foreground="{DynamicResource MutedBrush}" />
+                        </Border>
+                        <Image Source="{Binding Icon}" Width="22" Height="22" RenderOptions.BitmapScalingMode="HighQuality" />
+                    </Grid>
+                    <StackPanel Grid.Column="2" VerticalAlignment="Center" Margin="0,0,12,0">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="{Binding Name}" FontWeight="SemiBold" FontSize="13" TextTrimming="CharacterEllipsis" />
+                            <TextBlock Text="&#xE7BA;" Style="{StaticResource Icon}" FontSize="12" Margin="6,0,0,0" Foreground="{DynamicResource WarningBrush}"
+                                       ToolTip="Unknown Process: the executable could not be identified (protected process or insufficient rights)."
+                                       Visibility="{Binding IsUnknownProcess, Converter={StaticResource BoolToVis}}" />
+                        </StackPanel>
+                        <TextBlock Text="{Binding Subtitle}" FontSize="11.5" Foreground="{DynamicResource MutedBrush}" TextTrimming="CharacterEllipsis" Margin="0,1,0,0"
+                                   ToolTip="{Binding PathText}" />
+                    </StackPanel>
+                    <Border Grid.Column="3" Width="70" Style="{StaticResource Secondary}">
+                        <TextBlock Text="{Binding PidText}" Style="{StaticResource CellMono}" Foreground="{DynamicResource Text2Brush}" />
+                    </Border>
+                    <StackPanel Grid.Column="4" VerticalAlignment="Center">
+                        <TextBlock Text="{Binding ConnectionCount}" FontWeight="SemiBold" />
+                        <TextBlock FontSize="11" Foreground="{DynamicResource MutedBrush}"><Run Text="{Binding TotalConnections, Mode=OneWay}" /><Run Text=" total" /></TextBlock>
+                    </StackPanel>
+                    <TextBlock Grid.Column="5" Style="{StaticResource CellText}" TextAlignment="Right" Margin="0,0,12,0">
+                        <Run Text="↓" Foreground="{DynamicResource CyanBrush}" /> <Run Text="{Binding Download, Mode=OneWay}" />
+                    </TextBlock>
+                    <TextBlock Grid.Column="6" Style="{StaticResource CellText}" TextAlignment="Right" Margin="0,0,12,0">
+                        <Run Text="↑" Foreground="{DynamicResource AccentBrush}" /> <Run Text="{Binding Upload, Mode=OneWay}" />
+                    </TextBlock>
+                    <Border Grid.Column="7" Width="70" Style="{StaticResource Secondary}">
+                        <TextBlock Text="{Binding LastSeen}" Style="{StaticResource CellText}" Foreground="{DynamicResource Text2Brush}" />
+                    </Border>
+                    <c:ClassBadge Grid.Column="8" Kind="{Binding Class}" />
+                    <ContentPresenter Grid.Column="9" Content="{Binding}" ContentTemplate="{StaticResource StatusBadge}" VerticalAlignment="Center" />
+                    <ContentPresenter Grid.Column="10" Content="{Binding}" ContentTemplate="{StaticResource BlockButtons}" VerticalAlignment="Center" HorizontalAlignment="Right" />
+                </Grid>
+                <Border Visibility="{Binding IsExpanded, Converter={StaticResource BoolToVis}}" Margin="0,0,0,8"
+                        BorderBrush="{DynamicResource LineBrush}" BorderThickness="0,1,0,0" Padding="0,4,0,0">
+                    <StackPanel>
+                        <ItemsControl ItemsSource="{Binding Connections}" ItemTemplate="{StaticResource ConnectionRow}" />
+                        <TextBlock Text="No live connections right now." Margin="62,6,0,6" Foreground="{DynamicResource MutedBrush}" FontSize="12"
+                                   Visibility="{Binding ConnectionCount, Converter={StaticResource ZeroToVis}}" />
+                    </StackPanel>
+                </Border>
+            </StackPanel>
+        </DataTemplate>
+    </UserControl.Resources>
+
+    <Grid Margin="20,16,20,16">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <!-- ============ Summary cards + live graph ============ -->
+        <Grid>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="400" />
+            </Grid.ColumnDefinitions>
+            <UniformGrid Columns="3" Rows="2" x:Name="Cards">
+                <Border Style="{StaticResource SummaryCard}" ToolTip="TCP connections to a remote address (plus UDP/listening endpoints if enabled in Settings).">
+                    <StackPanel>
+                        <TextBlock Text="ACTIVE CONNECTIONS" Style="{StaticResource LabelText}" />
+                        <TextBlock Text="{Binding ActiveConnections}" Style="{StaticResource CardValue}" />
+                    </StackPanel>
+                </Border>
+                <Border Style="{StaticResource SummaryCard}" ToolTip="Applications with at least one live connection.">
+                    <StackPanel>
+                        <TextBlock Text="APPLICATIONS ONLINE" Style="{StaticResource LabelText}" />
+                        <TextBlock Text="{Binding AppsOnline}" Style="{StaticResource CardValue}" />
+                    </StackPanel>
+                </Border>
+                <Border Style="{StaticResource SummaryCard}" ToolTip="Firewall block rules created by this application that are enabled.">
+                    <StackPanel>
+                        <TextBlock Text="BLOCKED" Style="{StaticResource LabelText}" />
+                        <TextBlock Text="{Binding BlockedCount}" Style="{StaticResource CardValue}" Foreground="{DynamicResource DangerBrush}" />
+                    </StackPanel>
+                </Border>
+                <Border Style="{StaticResource SummaryCard}" ToolTip="Machine-wide upload across connected adapters.">
+                    <StackPanel>
+                        <TextBlock Text="UPLOAD" Style="{StaticResource LabelText}" />
+                        <TextBlock Text="{Binding UploadRate}" Style="{StaticResource CardValue}" Foreground="{DynamicResource AccentBrush}" />
+                    </StackPanel>
+                </Border>
+                <Border Style="{StaticResource SummaryCard}" ToolTip="Machine-wide download across connected adapters.">
+                    <StackPanel>
+                        <TextBlock Text="DOWNLOAD" Style="{StaticResource LabelText}" />
+                        <TextBlock Text="{Binding DownloadRate}" Style="{StaticResource CardValue}" Foreground="{DynamicResource CyanBrush}" />
+                    </StackPanel>
+                </Border>
+                <Border Style="{StaticResource SummaryCard}" ToolTip="Connections opened in the last 60 seconds.">
+                    <StackPanel>
+                        <TextBlock Text="NEW CONNECTIONS · 60 s" Style="{StaticResource LabelText}" />
+                        <TextBlock Text="{Binding NewConnections}" Style="{StaticResource CardValue}" />
+                    </StackPanel>
+                </Border>
+            </UniformGrid>
+            <Border Grid.Column="1" Style="{StaticResource Card}" Margin="0,0,0,10" Padding="14,11">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
+                    <DockPanel>
+                        <StackPanel Orientation="Horizontal" DockPanel.Dock="Right">
+                            <Rectangle Width="10" Height="3" Fill="{DynamicResource GraphDownBrush}" VerticalAlignment="Center" />
+                            <TextBlock Text="Download" Style="{StaticResource LabelText}" Margin="5,0,12,0" />
+                            <Rectangle Width="10" Height="3" Fill="{DynamicResource GraphUpBrush}" VerticalAlignment="Center" />
+                            <TextBlock Text="Upload" Style="{StaticResource LabelText}" Margin="5,0,0,0" />
+                        </StackPanel>
+                        <TextBlock Text="LAST 60 SECONDS" Style="{StaticResource LabelText}" />
+                    </DockPanel>
+                    <c:ThroughputGraph x:Name="Graph" Grid.Row="1" Margin="0,8,0,0" MinHeight="80"
+                                       DownBrush="{DynamicResource GraphDownBrush}" UpBrush="{DynamicResource GraphUpBrush}"
+                                       GridBrush="{DynamicResource GraphGridBrush}" LabelBrush="{DynamicResource MutedBrush}" />
+                </Grid>
+            </Border>
+        </Grid>
+
+        <!-- ============ Per-app traffic limitation notice ============ -->
+        <Border Grid.Row="1" Background="{DynamicResource Surface2Brush}" CornerRadius="8" Padding="12,8" Margin="0,0,0,10"
+                Visibility="{Binding TrafficNote, Converter={StaticResource NullToVis}}">
+            <DockPanel>
+                <Button DockPanel.Dock="Right" Style="{StaticResource LinkButton}" Content="Restart as administrator" VerticalAlignment="Center"
+                        Command="{Binding DataContext.RestartAsAdminCommand, RelativeSource={RelativeSource AncestorType=Window}}" />
+                <TextBlock Text="&#xE946;" Style="{StaticResource Icon}" Foreground="{DynamicResource AccentBrush}" Margin="0,0,10,0" />
+                <TextBlock Text="{Binding TrafficNote}" Foreground="{DynamicResource Text2Brush}" FontSize="12.5" VerticalAlignment="Center" TextWrapping="Wrap" />
+            </DockPanel>
+        </Border>
+
+        <!-- ============ Search + filters ============ -->
+        <Grid Grid.Row="2" Margin="0,0,0,10">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="300" />
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <Grid>
+                <TextBox x:Name="SearchBox" Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}" Padding="30,6,28,6"
+                         Tag="Search app, IP, hostname, port…" AutomationProperties.Name="Search" />
+                <TextBlock Text="&#xE721;" Style="{StaticResource Icon}" FontSize="13" Margin="10,0,0,0" HorizontalAlignment="Left" Foreground="{DynamicResource MutedBrush}" IsHitTestVisible="False" />
+                <Button Style="{StaticResource IconButton}" Content="&#xE711;" FontSize="9" HorizontalAlignment="Right" Margin="0,0,2,0" Padding="7"
+                        Command="{Binding ClearSearchCommand}" ToolTip="Clear search" Visibility="{Binding SearchText, Converter={StaticResource NullToVis}}" />
+            </Grid>
+            <WrapPanel Grid.Column="1" Margin="12,0,12,0" VerticalAlignment="Center">
+                <RadioButton Style="{StaticResource Chip}" GroupName="QF" Content="{Binding CountAll}" IsChecked="{Binding Filter, Converter={StaticResource EnumEquals}, ConverterParameter=All}" />
+                <RadioButton Style="{StaticResource Chip}" GroupName="QF" Content="{Binding CountActive}" IsChecked="{Binding Filter, Converter={StaticResource EnumEquals}, ConverterParameter=Active}" />
+                <RadioButton Style="{StaticResource Chip}" GroupName="QF" Content="{Binding CountBackground}" IsChecked="{Binding Filter, Converter={StaticResource EnumEquals}, ConverterParameter=Background}"
+                             ToolTip="Communicating while you are not using the application. Heuristic." />
+                <RadioButton Style="{StaticResource Chip}" GroupName="QF" Content="{Binding CountTelemetry}" IsChecked="{Binding Filter, Converter={StaticResource EnumEquals}, ConverterParameter=PossibleTelemetry}"
+                             ToolTip="{Binding ClassificationDisclaimer}" />
+                <RadioButton Style="{StaticResource Chip}" GroupName="QF" Content="{Binding CountUpdates}" IsChecked="{Binding Filter, Converter={StaticResource EnumEquals}, ConverterParameter=Updates}" />
+                <RadioButton Style="{StaticResource Chip}" GroupName="QF" Content="{Binding CountBlocked}" IsChecked="{Binding Filter, Converter={StaticResource EnumEquals}, ConverterParameter=Blocked}" />
+                <RadioButton Style="{StaticResource Chip}" GroupName="QF" Content="{Binding CountUnknown}" IsChecked="{Binding Filter, Converter={StaticResource EnumEquals}, ConverterParameter=Unknown}" />
+            </WrapPanel>
+            <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                <ComboBox ItemsSource="{Binding SortOptions}" SelectedItem="{Binding Sort}" Width="160" Margin="0,0,10,0"
+                          Visibility="{Binding Mode, Converter={StaticResource EnumToVis}, ConverterParameter=Grouped}" ToolTip="Sort applications">
+                    <ComboBox.ItemTemplate>
+                        <DataTemplate>
+                            <TextBlock>
+                                <TextBlock.Style>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="Text" Value="Most connections" />
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding}" Value="Traffic"><Setter Property="Text" Value="Most traffic" /></DataTrigger>
+                                            <DataTrigger Binding="{Binding}" Value="Name"><Setter Property="Text" Value="Name" /></DataTrigger>
+                                            <DataTrigger Binding="{Binding}" Value="Recent"><Setter Property="Text" Value="Recently active" /></DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </TextBlock.Style>
+                            </TextBlock>
+                        </DataTemplate>
+                    </ComboBox.ItemTemplate>
+                </ComboBox>
+                <Border Background="{DynamicResource Surface2Brush}" CornerRadius="7" Padding="3" BorderBrush="{DynamicResource LineBrush}" BorderThickness="1">
+                    <StackPanel Orientation="Horizontal">
+                        <RadioButton Style="{StaticResource Segment}" GroupName="Mode" Content="Applications" IsChecked="{Binding Mode, Converter={StaticResource EnumEquals}, ConverterParameter=Grouped}" />
+                        <RadioButton Style="{StaticResource Segment}" GroupName="Mode" Content="All connections" IsChecked="{Binding Mode, Converter={StaticResource EnumEquals}, ConverterParameter=Connections}" />
+                    </StackPanel>
+                </Border>
+            </StackPanel>
+        </Grid>
+
+        <!-- ============ List + details ============ -->
+        <Grid Grid.Row="3">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+
+            <Border x:Name="ListCard" Style="{StaticResource Card}" Padding="4,4,4,4">
+                <Grid>
+                    <!-- Grouped by application -->
+                    <Grid Visibility="{Binding Mode, Converter={StaticResource EnumToVis}, ConverterParameter=Grouped}">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="*" />
+                        </Grid.RowDefinitions>
+                        <Grid Height="34" Margin="6,0,18,0">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="28" />
+                                <ColumnDefinition Width="36" />
+                                <ColumnDefinition Width="*" MinWidth="130" />
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="{StaticResource ColConn}" />
+                                <ColumnDefinition Width="{StaticResource ColRate}" />
+                                <ColumnDefinition Width="{StaticResource ColRate}" />
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="{StaticResource ColClass}" />
+                                <ColumnDefinition Width="{StaticResource ColStatus}" />
+                                <ColumnDefinition Width="{StaticResource ColAction}" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Grid.Column="2" Text="APPLICATION" Style="{StaticResource HeaderCell}" />
+                            <Border Grid.Column="3" Width="70" Style="{StaticResource Secondary}">
+                                <TextBlock Text="PID" Style="{StaticResource HeaderCell}" />
+                            </Border>
+                            <TextBlock Grid.Column="4" Text="CONNECTIONS" Style="{StaticResource HeaderCell}" />
+                            <TextBlock Grid.Column="5" Text="DOWNLOAD" Style="{StaticResource HeaderCell}" TextAlignment="Right" Margin="0,0,12,0" />
+                            <TextBlock Grid.Column="6" Text="UPLOAD" Style="{StaticResource HeaderCell}" TextAlignment="Right" Margin="0,0,12,0" />
+                            <Border Grid.Column="7" Width="70" Style="{StaticResource Secondary}">
+                                <TextBlock Text="LAST SEEN" Style="{StaticResource HeaderCell}" />
+                            </Border>
+                            <TextBlock Grid.Column="8" Text="ACTIVITY" Style="{StaticResource HeaderCell}" ToolTip="{Binding ClassificationDisclaimer}" />
+                            <TextBlock Grid.Column="9" Text="STATUS" Style="{StaticResource HeaderCell}" />
+                        </Grid>
+                        <Rectangle Height="1" Fill="{DynamicResource LineBrush}" VerticalAlignment="Bottom" Margin="8,0" />
+                        <ListBox x:Name="AppList" Grid.Row="1" Style="{StaticResource PlainListBox}" ItemsSource="{Binding AppsView}"
+                                 ItemTemplate="{StaticResource AppRow}" ItemContainerStyle="{StaticResource AppListItem}"
+                                 SelectedItem="{Binding SelectedApp}" Margin="0,4,0,0" AutomationProperties.Name="Applications" />
+                    </Grid>
+
+                    <!-- Flat list of every connection -->
+                    <DataGrid x:Name="ConnectionGrid" ItemsSource="{Binding ConnectionsView}" SelectedItem="{Binding SelectedConnection}"
+                              Visibility="{Binding Mode, Converter={StaticResource EnumToVis}, ConverterParameter=Connections}" Margin="6,0,6,0"
+                              AutomationProperties.Name="All connections">
+                        <DataGrid.Columns>
+                            <DataGridTemplateColumn Header="APPLICATION" Width="190" SortMemberPath="AppName">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <StackPanel Orientation="Horizontal">
+                                            <Image Source="{Binding Icon}" Width="16" Height="16" Margin="0,0,8,0" />
+                                            <TextBlock Text="{Binding AppName}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" FontWeight="SemiBold" />
+                                        </StackPanel>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+                            <DataGridTextColumn Header="PID" Binding="{Binding Pid}" Width="64" />
+                            <DataGridTextColumn Header="PROCESS" Binding="{Binding Owner.PathText}" Width="160" />
+                            <DataGridTextColumn Header="LOCAL ADDRESS" Binding="{Binding LocalEndpoint}" Width="170" />
+                            <DataGridTextColumn Header="REMOTE ADDRESS" Binding="{Binding RemoteAddress}" Width="150" />
+                            <DataGridTextColumn Header="HOSTNAME" Binding="{Binding Hostname}" Width="190" />
+                            <DataGridTextColumn Header="PORT" Binding="{Binding Port}" Width="64" />
+                            <DataGridTextColumn Header="PROTOCOL" Binding="{Binding Protocol}" Width="80" />
+                            <DataGridTextColumn Header="STATE" Binding="{Binding State}" Width="112" />
+                            <DataGridTextColumn Header="CONNECTIONS" Binding="{Binding Owner.ConnectionCount}" Width="96" />
+                            <DataGridTextColumn Header="UPLOAD" Binding="{Binding Upload}" Width="90" SortMemberPath="RateTotal" />
+                            <DataGridTextColumn Header="DOWNLOAD" Binding="{Binding Download}" Width="90" SortMemberPath="RateTotal" />
+                            <DataGridTextColumn Header="LAST SEEN" Binding="{Binding LastSeen}" Width="80" SortMemberPath="LastSeenTime" />
+                            <DataGridTemplateColumn Header="STATUS" Width="90" SortMemberPath="Status">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <ContentPresenter Content="{Binding Owner}" ContentTemplate="{StaticResource StatusBadge}" />
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+                        </DataGrid.Columns>
+                    </DataGrid>
+
+                    <!-- Loading / empty states -->
+                    <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Visibility="{Binding IsLoading, Converter={StaticResource BoolToVis}}">
+                        <ProgressBar Style="{StaticResource LoadingBar}" Width="180" />
+                        <TextBlock Text="Reading the connection table…" Foreground="{DynamicResource MutedBrush}" Margin="0,10,0,0" HorizontalAlignment="Center" />
+                    </StackPanel>
+                    <Grid Visibility="{Binding IsLoading, Converter={StaticResource InvBoolToVis}}">
+                        <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Visibility="{Binding VisibleCount, Converter={StaticResource ZeroToVis}}">
+                            <TextBlock Text="&#xE774;" Style="{StaticResource Icon}" FontSize="34" HorizontalAlignment="Center" Foreground="{DynamicResource MutedBrush}" />
+                            <TextBlock Text="Nothing to show" FontSize="15" FontWeight="SemiBold" HorizontalAlignment="Center" Margin="0,12,0,4" />
+                            <TextBlock Text="No application matches the current search or filter." Foreground="{DynamicResource MutedBrush}" HorizontalAlignment="Center" />
+                        </StackPanel>
+                    </Grid>
+                </Grid>
+            </Border>
+
+            <!-- ============ Details side panel ============ -->
+            <Border Grid.Column="1" Width="380" Margin="12,0,0,0" Style="{StaticResource Card}" Padding="0"
+                    Visibility="{Binding DataContext.IsDetailsOpen, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource BoolToVis}}" DataContext="{Binding SelectedApp}">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
+                    <Border Padding="18,16,10,14" BorderBrush="{DynamicResource LineBrush}" BorderThickness="0,0,0,1">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <Image Source="{Binding Icon}" Width="32" Height="32" VerticalAlignment="Top" Margin="0,2,12,0" RenderOptions.BitmapScalingMode="HighQuality" />
+                            <StackPanel Grid.Column="1">
+                                <TextBlock Text="{Binding Name}" FontSize="16" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
+                                <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
+                                    <c:ClassBadge Kind="{Binding Class}" Margin="0,0,6,0" />
+                                    <ContentPresenter Content="{Binding}" ContentTemplate="{StaticResource StatusBadge}" />
+                                </StackPanel>
+                            </StackPanel>
+                            <Button Grid.Column="2" Style="{StaticResource IconButton}" Content="&#xE711;" FontSize="11" VerticalAlignment="Top"
+                                    Command="{Binding DataContext.CloseDetailsCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" ToolTip="Close details" />
+                        </Grid>
+                    </Border>
+                    <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Padding="18,6,14,18">
+                        <StackPanel>
+                            <StackPanel Orientation="Horizontal" Margin="0,8,0,4">
+                                <ContentPresenter Content="{Binding}" ContentTemplate="{StaticResource BlockButtons}" Margin="0,0,8,0" />
+                                <Button Style="{StaticResource RowButton}" Content="Open location" Margin="0,0,8,0"
+                                        Command="{Binding DataContext.OpenLocationCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}" />
+                                <Button Style="{StaticResource RowButton}" Content="Copy path"
+                                        Command="{Binding DataContext.CopyPathCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}" />
+                            </StackPanel>
+                            <TextBlock Text="{Binding BlockRefusal}" Style="{StaticResource BodyText}" FontSize="12" Foreground="{DynamicResource WarningBrush}" Margin="0,4,0,0"
+                                       Visibility="{Binding BlockRefusal, Converter={StaticResource NullToVis}}" />
+
+                            <TextBlock Text="IDENTITY" Style="{StaticResource DetailLabel}" Margin="0,16,0,0" FontWeight="SemiBold" />
+                            <TextBlock Text="Executable path" Style="{StaticResource DetailLabel}" />
+                            <TextBlock Text="{Binding PathText}" Style="{StaticResource ValueText}" FontFamily="{StaticResource MonoFont}" FontSize="12" />
+                            <TextBlock Text="Publisher" Style="{StaticResource DetailLabel}" />
+                            <TextBlock Text="{Binding Publisher}" Style="{StaticResource ValueText}" />
+                            <TextBlock Text="Digital signature" Style="{StaticResource DetailLabel}" />
+                            <c:Pill Text="{Binding Signature}" Tone="{Binding SignatureTone}" />
+                            <TextBlock Text="File version" Style="{StaticResource DetailLabel}" />
+                            <TextBlock Text="{Binding FileVersion}" Style="{StaticResource ValueText}" />
+                            <TextBlock Text="Description" Style="{StaticResource DetailLabel}" Visibility="{Binding Description, Converter={StaticResource NullToVis}}" />
+                            <TextBlock Text="{Binding Description}" Style="{StaticResource ValueText}" Visibility="{Binding Description, Converter={StaticResource NullToVis}}" />
+                            <TextBlock Text="Hosted services" Style="{StaticResource DetailLabel}" Visibility="{Binding Services, Converter={StaticResource NullToVis}}" />
+                            <TextBlock Text="{Binding Services}" Style="{StaticResource ValueText}" Visibility="{Binding Services, Converter={StaticResource NullToVis}}" />
+                            <UniformGrid Columns="2">
+                                <StackPanel>
+                                    <TextBlock Text="PID" Style="{StaticResource DetailLabel}" />
+                                    <TextBlock Text="{Binding PidText}" Style="{StaticResource ValueText}" FontFamily="{StaticResource MonoFont}" />
+                                </StackPanel>
+                                <StackPanel>
+                                    <TextBlock Text="Process start time" Style="{StaticResource DetailLabel}" />
+                                    <TextBlock Text="{Binding StartTime}" Style="{StaticResource ValueText}" />
+                                </StackPanel>
+                            </UniformGrid>
+
+                            <TextBlock Text="ACTIVITY" Style="{StaticResource DetailLabel}" Margin="0,20,0,0" FontWeight="SemiBold" />
+                            <UniformGrid Columns="2">
+                                <StackPanel>
+                                    <TextBlock Text="Active connections" Style="{StaticResource DetailLabel}" />
+                                    <TextBlock Text="{Binding ConnectionCount}" Style="{StaticResource ValueText}" FontSize="16" FontWeight="SemiBold" />
+                                </StackPanel>
+                                <StackPanel>
+                                    <TextBlock Text="Total connections" Style="{StaticResource DetailLabel}" />
+                                    <TextBlock Text="{Binding TotalConnections}" Style="{StaticResource ValueText}" FontSize="16" FontWeight="SemiBold" />
+                                </StackPanel>
+                                <StackPanel>
+                                    <TextBlock Text="Download" Style="{StaticResource DetailLabel}" />
+                                    <TextBlock Text="{Binding Download}" Style="{StaticResource ValueText}" />
+                                    <TextBlock Text="{Binding TotalDownloaded}" Style="{StaticResource LabelText}" />
+                                </StackPanel>
+                                <StackPanel>
+                                    <TextBlock Text="Upload" Style="{StaticResource DetailLabel}" />
+                                    <TextBlock Text="{Binding Upload}" Style="{StaticResource ValueText}" />
+                                    <TextBlock Text="{Binding TotalUploaded}" Style="{StaticResource LabelText}" />
+                                </StackPanel>
+                                <StackPanel>
+                                    <TextBlock Text="First seen" Style="{StaticResource DetailLabel}" />
+                                    <TextBlock Text="{Binding FirstSeen}" Style="{StaticResource ValueText}" />
+                                </StackPanel>
+                                <StackPanel>
+                                    <TextBlock Text="Last seen" Style="{StaticResource DetailLabel}" />
+                                    <TextBlock Text="{Binding LastSeen}" Style="{StaticResource ValueText}" />
+                                </StackPanel>
+                            </UniformGrid>
+
+                            <TextBlock Text="WHY THIS LABEL" Style="{StaticResource DetailLabel}" Margin="0,20,0,4" FontWeight="SemiBold" />
+                            <Border Background="{DynamicResource Surface2Brush}" CornerRadius="6" Padding="10,8">
+                                <StackPanel>
+                                    <TextBlock Text="{Binding ClassReasons}" Style="{StaticResource BodyText}" FontSize="12" LineHeight="18" />
+                                    <TextBlock Text="Classification is heuristic and does not prove that traffic is telemetry." Style="{StaticResource LabelText}" FontStyle="Italic" Margin="0,6,0,0" TextWrapping="Wrap" />
+                                </StackPanel>
+                            </Border>
+
+                            <TextBlock Text="DESTINATIONS" Style="{StaticResource DetailLabel}" Margin="0,20,0,0" FontWeight="SemiBold" />
+                            <TextBlock Text="Remote IP addresses" Style="{StaticResource DetailLabel}" />
+                            <TextBlock Text="{Binding RemoteAddresses}" Style="{StaticResource ValueText}" FontFamily="{StaticResource MonoFont}" FontSize="11.5" />
+                            <TextBlock Text="Hostnames" Style="{StaticResource DetailLabel}" />
+                            <TextBlock Text="{Binding Hostnames}" Style="{StaticResource ValueText}" FontSize="12" />
+                            <UniformGrid Columns="2">
+                                <StackPanel>
+                                    <TextBlock Text="Remote ports" Style="{StaticResource DetailLabel}" />
+                                    <TextBlock Text="{Binding RemotePorts}" Style="{StaticResource ValueText}" />
+                                </StackPanel>
+                                <StackPanel>
+                                    <TextBlock Text="Protocols" Style="{StaticResource DetailLabel}" />
+                                    <TextBlock Text="{Binding Protocols}" Style="{StaticResource ValueText}" />
+                                </StackPanel>
+                            </UniformGrid>
+
+                            <TextBlock Text="CONNECTION TIMELINE" Style="{StaticResource DetailLabel}" Margin="0,20,0,6" FontWeight="SemiBold" />
+                            <TextBlock Text="Events appear here as connections open and close." Style="{StaticResource LabelText}"
+                                       Visibility="{Binding Timeline.Count, Converter={StaticResource ZeroToVis}}" />
+                            <ItemsControl ItemsSource="{Binding Timeline}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate DataType="{x:Type vm:TimelineItem}">
+                                        <Grid Margin="0,2">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="62" />
+                                                <ColumnDefinition Width="20" />
+                                                <ColumnDefinition Width="*" />
+                                            </Grid.ColumnDefinitions>
+                                            <TextBlock Text="{Binding Time}" FontFamily="{StaticResource MonoFont}" FontSize="11.5" Foreground="{DynamicResource MutedBrush}" />
+                                            <TextBlock Grid.Column="1" Text="{Binding Glyph}" FontWeight="Bold" FontSize="12" HorizontalAlignment="Center">
+                                                <TextBlock.Style>
+                                                    <Style TargetType="TextBlock">
+                                                        <Setter Property="Foreground" Value="{DynamicResource MutedBrush}" />
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding Kind}" Value="Opened"><Setter Property="Foreground" Value="{DynamicResource SuccessBrush}" /></DataTrigger>
+                                                            <DataTrigger Binding="{Binding Kind}" Value="BlockedAttempt"><Setter Property="Foreground" Value="{DynamicResource DangerBrush}" /></DataTrigger>
+                                                            <DataTrigger Binding="{Binding Kind}" Value="Blocked"><Setter Property="Foreground" Value="{DynamicResource DangerBrush}" /></DataTrigger>
+                                                            <DataTrigger Binding="{Binding Kind}" Value="Unblocked"><Setter Property="Foreground" Value="{DynamicResource SuccessBrush}" /></DataTrigger>
+                                                            <DataTrigger Binding="{Binding Kind}" Value="Dns"><Setter Property="Foreground" Value="{DynamicResource CyanBrush}" /></DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </TextBlock.Style>
+                                            </TextBlock>
+                                            <TextBlock Grid.Column="2" Text="{Binding Text}" FontFamily="{StaticResource MonoFont}" FontSize="11.5" TextTrimming="CharacterEllipsis"
+                                                       ToolTip="{Binding Text}" />
+                                        </Grid>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                            <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
+                                <TextBlock Style="{StaticResource LabelText}" Margin="0,0,10,0"><Run Text="→ opened" Foreground="{DynamicResource SuccessBrush}" />   <Run Text="× closed" />   <Run Text="⊘ blocked" Foreground="{DynamicResource DangerBrush}" />   <Run Text="? DNS lookup" Foreground="{DynamicResource CyanBrush}" /></TextBlock>
+                            </StackPanel>
+                        </StackPanel>
+                    </ScrollViewer>
+                </Grid>
+            </Border>
+        </Grid>
+    </Grid>
+</UserControl>

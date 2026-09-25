@@ -1,0 +1,53 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <!-- WinForms is used only for the system tray NotifyIcon. -->
+    <UseWindowsForms>true</UseWindowsForms>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+    <AssemblyName>NetworkTelemetryInspector</AssemblyName>
+    <RootNamespace>NetworkTelemetryInspector</RootNamespace>
+    <ApplicationManifest>App\app.manifest</ApplicationManifest>
+    <ApplicationIcon>Resources\app.ico</ApplicationIcon>
+    <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <Version>1.0.0</Version>
+    <AssemblyVersion>1.0.0.0</AssemblyVersion>
+    <FileVersion>1.0.0.0</FileVersion>
+    <InformationalVersion>1.0.0</InformationalVersion>
+    <Product>Network &amp; Telemetry Inspector</Product>
+    <AssemblyTitle>Network &amp; Telemetry Inspector</AssemblyTitle>
+    <Company>Network &amp; Telemetry Inspector</Company>
+    <Description>See what your PC is talking to.</Description>
+    <Copyright>Copyright (c) 2026</Copyright>
+    <NeutralLanguage>en</NeutralLanguage>
+    <!-- Never set InvariantGlobalization=true: it breaks WPF text rendering. -->
+    <InvariantGlobalization>false</InvariantGlobalization>
+    <NoWarn>$(NoWarn);CA1416;SYSLIB0057;WFAC010</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Using Remove="System.Windows.Forms" />
+    <Using Remove="System.Drawing" />
+    <Using Include="System.IO" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Resource Include="Resources\app.ico" />
+    <InternalsVisibleTo Include="NetworkTelemetryInspector.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="CommunityToolkit.Mvvm" Version="8.3.2" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ApplicationDefinition Remove="App.xaml" />
+    <ApplicationDefinition Include="App\App.xaml" />
+  </ItemGroup>
+
+</Project>
